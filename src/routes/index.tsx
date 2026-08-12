@@ -9,7 +9,7 @@ import { ScanOverlay } from "@/features/emergency/components/scan-overlay";
 import { RecommendationSheet } from "@/features/emergency/components/recommendation-sheet";
 import { ActiveDispatch } from "@/features/emergency/components/active-dispatch";
 import { OfflineSurvival } from "@/features/emergency/components/offline-survival";
-import { fetchLiveHospitals, type HospitalData } from "@/lib/hospital-api";
+import { fetchLiveHospitals, getDistance, type HospitalData } from "@/lib/hospital-api";
 
 const TITLE = "VitalRoute — Two-Tap Emergency Dispatch";
 const DESCRIPTION =
@@ -40,14 +40,29 @@ function VitalRoute() {
   
   // Background pre-fetching state
   const [hospitals, setHospitals] = useState<HospitalData[] | null>(null);
+  const lastFetchedLoc = useRef<[number, number] | null>(null);
   
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Pre-fetch hospitals immediately when location is found
+  // Pre-fetch hospitals immediately when location is found, but prevent rapid double-fetching
   useEffect(() => {
     if (location) {
+      if (lastFetchedLoc.current) {
+        const dist = getDistance(
+          lastFetchedLoc.current[0], lastFetchedLoc.current[1],
+          location[0], location[1]
+        );
+        // Only refetch if the user has moved more than 2km
+        if (dist < 2) return;
+      }
+      
+      lastFetchedLoc.current = location;
       fetchLiveHospitals(location[0], location[1]).then(data => {
-        setHospitals(data);
+        setHospitals(prev => {
+          // If we got real data, use it. If we got rate-limited ([]), keep the old data if it exists.
+          if (data && data.length > 0) return data;
+          return prev ? prev : [];
+        });
       });
     }
   }, [location]);
