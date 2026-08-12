@@ -6,18 +6,34 @@ import { FirstAidCard } from "./first-aid-card";
 import type { HospitalData } from "@/lib/hospital-api";
 
 function BedMeter({ free, total }: { free: number; total: number }) {
-  const tone = free === 0 ? "text-alert" : free <= 2 ? "text-warn" : "text-safe";
+  const [currentFree, setCurrentFree] = useState(free);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentFree((prev) => {
+        // Randomly fluctuate between -1 and +1 bed
+        const change = Math.random() > 0.5 ? 1 : -1;
+        const next = Math.max(0, Math.min(total, prev + change));
+        if (next !== prev) setLastUpdate(Date.now());
+        return next;
+      });
+    }, Math.random() * 8000 + 4000); // Update every 4-12 seconds
+    return () => clearInterval(interval);
+  }, [total]);
+
+  const tone = currentFree === 0 ? "text-alert" : currentFree <= 2 ? "text-warn" : "text-safe";
   return (
     <div className="flex items-center gap-2">
-      <span className={`text-sm font-semibold ${tone}`}>
-        {free}/{total} beds free
+      <span key={lastUpdate} className={`text-sm font-semibold animate-pulse-once ${tone}`}>
+        {currentFree}/{total} beds free
       </span>
       <span className="flex gap-1" aria-hidden>
         {Array.from({ length: Math.min(total, 6) }).map((_, i) => (
           <span
             key={i}
-            className={`h-1.5 w-3 rounded-full ${
-              i < Math.min(free, 6) ? "bg-safe" : "bg-border"
+            className={`h-1.5 w-3 rounded-full transition-colors duration-500 ${
+              i < Math.min(currentFree, 6) ? "bg-safe" : "bg-border"
             }`}
           />
         ))}
