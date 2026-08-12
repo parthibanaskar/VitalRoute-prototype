@@ -12,15 +12,17 @@ function BedMeter({ free, total }: { free: number; total: number }) {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentFree((prev) => {
-        // Randomly fluctuate between -1 and +1 bed
         const change = Math.random() > 0.5 ? 1 : -1;
-        const next = Math.max(0, Math.min(total, prev + change));
-        if (next !== prev) setLastUpdate(Date.now());
-        return next;
+        return Math.max(0, Math.min(total, prev + change));
       });
     }, Math.random() * 8000 + 4000); // Update every 4-12 seconds
     return () => clearInterval(interval);
   }, [total]);
+
+  // Safely trigger animation key when the value actually changes
+  useEffect(() => {
+    setLastUpdate(Date.now());
+  }, [currentFree]);
 
   const tone = currentFree === 0 ? "text-alert" : currentFree <= 2 ? "text-warn" : "text-safe";
   return (
