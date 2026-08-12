@@ -1,37 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Radio, AlertTriangle } from "lucide-react";
-import { MapContainer, TileLayer, useMap, Marker } from "react-leaflet";
-import { divIcon } from "leaflet";
-import "leaflet/dist/leaflet.css";
 
-function MapUpdater({ center }: { center: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (center) {
-      // Convert the GPS coordinate to a pixel coordinate at the current zoom
-      const targetPoint = map.project(center, map.getZoom());
-      
-      // Shift the map's center 200 pixels DOWN (Y axis increases downwards).
-      // This causes the marker to visually appear 200 pixels HIGHER on the screen.
-      targetPoint.y += 200;
-      
-      // Convert back to GPS coordinates and set absolute view
-      const offsetCenter = map.unproject(targetPoint, map.getZoom());
-      map.setView(offsetCenter, map.getZoom(), { animate: true });
-    }
-  }, [map, center]);
-  return null;
-}
-
-const blueDotIcon = divIcon({
-  className: "bg-transparent border-none",
-  html: `<div class="relative flex h-6 w-6 items-center justify-center">
-           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" style="animation-duration: 2s;"></span>
-           <span class="relative inline-flex h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-white shadow-md"></span>
-         </div>`,
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
+// NOTE: react-leaflet and leaflet are NOT imported at the top level.
+// They access `window` at module initialization time, which crashes SSR.
+// We lazy-load them entirely inside useEffect (client-only).
 
 /** Live map surface: aesthetic map plate + grid overlay + GPS pin. */
 export function MapCanvas({ 
@@ -41,39 +13,40 @@ export function MapCanvas({
   dispatching?: boolean;
   onLocationUpdate?: (loc: [number, number]) => void;
 }) {
-  const [mounted, setMounted] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+
   const [location, setLocation] = useState<[number, number] | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // Reverse geocode when location changes
   useEffect(() => {
-    if (location) {
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location[0]}&lon=${location[1]}&zoom=18&addressdetails=1`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.address) {
-            const addr = data.address;
-            const specific = addr.neighbourhood || addr.suburb || addr.village || addr.road || addr.pedestrian;
-            const broad = addr.city || addr.town || addr.county || addr.state_district;
-            
-            let formattedAddress = "Unknown location";
-            if (specific && broad && specific !== broad) {
-              formattedAddress = `${specific}, ${broad}`;
-            } else if (specific) {
-              formattedAddress = specific;
-            } else if (broad) {
-              formattedAddress = broad;
-            } else if (addr.state) {
-              formattedAddress = addr.state;
-            }
-            
-            setAddress(formattedAddress);
+    if (!location) return;
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location[0]}&lon=${location[1]}&zoom=18&addressdetails=1`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.address) {
+          const addr = data.address;
+          const specific = addr.neighbourhood || addr.suburb || addr.village || addr.road || addr.pedestrian;
+          const broad = addr.city || addr.town || addr.county || addr.state_district;
+          let formattedAddress = "Unknown location";
+          if (specific && broad && specific !== broad) {
+            formattedAddress = `${specific}, ${broad}`;
+          } else if (specific) {
+            formattedAddress = specific;
+          } else if (broad) {
+            formattedAddress = broad;
+          } else if (addr.state) {
+            formattedAddress = addr.state;
           }
-        })
-        .catch(console.error);
-    }
+          setAddress(formattedAddress);
+        }
+      })
+      .catch(console.error);
   }, [location]);
 
   const fetchIpLocation = async (fallbackMsg: string) => {
@@ -82,87 +55,132 @@ export function MapCanvas({
       const data = await res.json();
       if (data.latitude && data.longitude) {
         const newLoc: [number, number] = [data.latitude, data.longitude];
-        setLocation((prev) => prev || newLoc);
+        setLocation(prev => prev || newLoc);
         if (onLocationUpdate) onLocationUpdate(newLoc);
-        setAccuracy((prev) => prev || 5000); 
+        setAccuracy(prev => prev || 5000);
         setErrorMsg(fallbackMsg + " (Using IP est.)");
       }
-    } catch (err) {
-      setLocation((prev) => prev || [51.505, -0.09]);
-      setAccuracy((prev) => prev || 10);
+    } catch {
+      setLocation(prev => prev || [51.505, -0.09]);
+      setAccuracy(prev => prev || 10);
       setErrorMsg("GPS Failed & IP Failed");
     }
   };
 
+  // Initialize map (client-only via dynamic import)
   useEffect(() => {
     setMounted(true);
     let watchId: number | null = null;
+    let leafletMap: any = null;
 
-    if ("geolocation" in navigator) {
-      // 1. Fast initial fetch (low accuracy, instant response)
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocation((prev) => {
-            // Only set if watchPosition hasn't fired yet
-            if (prev) return prev;
+    const initMap = async () => {
+      if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+      // Dynamic import — runs only in browser, never on SSR server
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css");
+      const { MapContainer, TileLayer, Marker } = await import("react-leaflet");
+
+      // Store for later use (we'll manage map via L directly)
+      const map = L.map(mapContainerRef.current, {
+        center: [51.505, -0.09],
+        zoom: 16,
+        zoomControl: false,
+        attributionControl: false,
+      });
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: "",
+      }).addTo(map);
+
+      const blueDotIcon = L.divIcon({
+        className: "bg-transparent border-none",
+        html: `<div class="relative flex h-6 w-6 items-center justify-center">
+                 <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" style="animation-duration: 2s;"></span>
+                 <span class="relative inline-flex h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-white shadow-md"></span>
+               </div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+
+      mapInstanceRef.current = map;
+
+      // Update marker helper
+      const updateMarker = (loc: [number, number]) => {
+        if (markerRef.current) {
+          markerRef.current.setLatLng(loc);
+        } else {
+          markerRef.current = L.marker(loc, { icon: blueDotIcon }).addTo(map);
+        }
+        const targetPoint = map.project(loc, map.getZoom());
+        targetPoint.y += 200;
+        const offsetCenter = map.unproject(targetPoint, map.getZoom());
+        map.setView(offsetCenter, map.getZoom(), { animate: true });
+      };
+
+      // Start geolocation
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
             const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            setLocation(prev => {
+              if (prev) return prev;
+              if (onLocationUpdate) onLocationUpdate(newLoc);
+              setAccuracy(pos.coords.accuracy);
+              updateMarker(newLoc);
+              return newLoc;
+            });
+          },
+          () => {},
+          { enableHighAccuracy: false, maximumAge: Infinity, timeout: 5000 }
+        );
+
+        watchId = navigator.geolocation.watchPosition(
+          pos => {
+            const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            setLocation(newLoc);
             if (onLocationUpdate) onLocationUpdate(newLoc);
             setAccuracy(pos.coords.accuracy);
-            return newLoc;
-          });
-        },
-        () => {}, // Ignore errors, let watchPosition handle fallback
-        { enableHighAccuracy: false, maximumAge: Infinity, timeout: 5000 }
-      );
+            setErrorMsg(null);
+            updateMarker(newLoc);
+          },
+          err => {
+            let msg = "GPS Error";
+            if (err.code === 1) msg = "Permission Denied";
+            if (err.code === 2) msg = "Position Unavailable";
+            if (err.code === 3) msg = "GPS Timeout";
+            fetchIpLocation(msg).then(() => {
+              setLocation(prev => {
+                if (prev) updateMarker(prev);
+                return prev;
+              });
+            });
+          },
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+        );
+      } else {
+        fetchIpLocation("Browser doesn't support GPS");
+      }
+    };
 
-      // 2. High accuracy continuous tracking
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-          setLocation(newLoc);
-          if (onLocationUpdate) onLocationUpdate(newLoc);
-          setAccuracy(pos.coords.accuracy);
-          setErrorMsg(null); // Clear errors on success
-        },
-        (err) => {
-          console.warn("Geolocation error:", err);
-          let msg = "GPS Error";
-          if (err.code === 1) msg = "Permission Denied";
-          if (err.code === 2) msg = "Position Unavailable (No HTTPS?)";
-          if (err.code === 3) msg = "GPS Timeout";
-          fetchIpLocation(msg);
-        },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-      );
-    } else {
-      fetchIpLocation("Browser doesn't support GPS");
-    }
+    initMap().catch(console.error);
 
     return () => {
       if (watchId !== null && "geolocation" in navigator) {
         navigator.geolocation.clearWatch(watchId);
+      }
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
       }
     };
   }, []);
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-zinc-950">
-      {mounted && (
-        <MapContainer
-          center={location || [51.505, -0.09]}
-          zoom={16}
-          zoomControl={false}
-          attributionControl={false}
-          style={{ height: "100%", width: "100%", zIndex: 0 }}
-        >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
-          />
-          {location && <Marker position={location} icon={blueDotIcon} />}
-          <MapUpdater center={location} />
-        </MapContainer>
-      )}
+      {/* Map mounts here — leaflet takes over this div */}
+      <div ref={mapContainerRef} className="absolute inset-0" style={{ zIndex: 0 }} />
 
       {/* Grid overlay for aesthetic */}
       <div className="grid-map absolute inset-0 opacity-60 pointer-events-none z-10" />
