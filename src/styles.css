@@ -1,0 +1,241 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * VitalRoute design system.
+ * Calming dark-first palette: deep navy slate surfaces, neon-cyan tech accents,
+ * alert red/orange for emergency affordances. All colors are oklch tokens.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-alert: var(--alert);
+  --color-alert-foreground: var(--alert-foreground);
+  --color-warn: var(--warn);
+  --color-safe: var(--safe);
+  --color-safe-foreground: var(--safe-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  --radius: 1rem;
+
+  --background: oklch(0.17 0.033 259);
+  --foreground: oklch(0.97 0.008 247);
+  --card: oklch(0.23 0.036 261);
+  --card-foreground: oklch(0.97 0.008 247);
+  --popover: oklch(0.21 0.034 260);
+  --popover-foreground: oklch(0.97 0.008 247);
+
+  /* Neon cyan — GPS / tech / trust */
+  --primary: oklch(0.83 0.15 195);
+  --primary-foreground: oklch(0.18 0.04 250);
+
+  --secondary: oklch(0.28 0.038 260);
+  --secondary-foreground: oklch(0.96 0.008 247);
+  --muted: oklch(0.27 0.033 260);
+  --muted-foreground: oklch(0.72 0.028 254);
+  --accent: oklch(0.3 0.045 258);
+  --accent-foreground: oklch(0.97 0.008 247);
+
+  /* Emergency */
+  --destructive: oklch(0.62 0.23 25);
+  --destructive-foreground: oklch(0.98 0.01 250);
+  --alert: oklch(0.66 0.24 27);
+  --alert-foreground: oklch(0.99 0.005 250);
+  --warn: oklch(0.75 0.17 62);
+
+  /* Capacity ready */
+  --safe: oklch(0.78 0.17 160);
+  --safe-foreground: oklch(0.2 0.04 258);
+
+  --border: oklch(0.98 0.01 250 / 12%);
+  --input: oklch(0.98 0.01 250 / 16%);
+  --ring: oklch(0.83 0.15 195 / 55%);
+
+  --glass: oklch(0.28 0.04 260 / 55%);
+  --gradient-heartbeat: radial-gradient(
+    120% 90% at 50% 100%,
+    color-mix(in oklab, var(--alert) 24%, transparent),
+    transparent 70%
+  );
+  --gradient-scan: radial-gradient(
+    100% 100% at 50% 50%,
+    color-mix(in oklab, var(--primary) 22%, transparent),
+    transparent 72%
+  );
+  --shadow-float: 0 24px 60px -24px oklch(0.1 0.03 260 / 90%);
+  --shadow-glow-primary: 0 0 40px -6px color-mix(in oklab, var(--primary) 45%, transparent);
+  --shadow-glow-alert: 0 0 48px -6px color-mix(in oklab, var(--alert) 55%, transparent);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ---------- Surfaces ---------- */
+
+@utility glass {
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-float);
+}
+
+@utility glass-strong {
+  background: color-mix(in oklab, var(--card) 82%, transparent);
+  backdrop-filter: blur(28px) saturate(150%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-float);
+}
+
+@utility grid-map {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--primary) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--primary) 9%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes heartbeat-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  45% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes halo {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cpr-beat {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.6;
+  }
+  18% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(0.92);
+    opacity: 0.8;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@utility animate-heartbeat {
+  animation: heartbeat-glow 3.6s ease-in-out infinite;
+}
+
+@utility animate-halo {
+  animation: halo 2.8s ease-out infinite;
+}
+
+@utility animate-radar {
+  animation: radar-sweep 2s linear infinite;
+}
+
+@utility animate-cpr {
+  animation: cpr-beat 0.545s ease-in-out infinite;
+}
+
+@utility animate-rise-in {
+  animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-soft-in {
+  animation: soft-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
