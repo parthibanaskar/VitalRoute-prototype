@@ -99,6 +99,23 @@ export function MapCanvas({
     let watchId: number | null = null;
 
     if ("geolocation" in navigator) {
+      // 1. Fast initial fetch (low accuracy, instant response)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocation((prev) => {
+            // Only set if watchPosition hasn't fired yet
+            if (prev) return prev;
+            const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            if (onLocationUpdate) onLocationUpdate(newLoc);
+            setAccuracy(pos.coords.accuracy);
+            return newLoc;
+          });
+        },
+        () => {}, // Ignore errors, let watchPosition handle fallback
+        { enableHighAccuracy: false, maximumAge: Infinity, timeout: 5000 }
+      );
+
+      // 2. High accuracy continuous tracking
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const newLoc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
@@ -115,7 +132,7 @@ export function MapCanvas({
           if (err.code === 3) msg = "GPS Timeout";
           fetchIpLocation(msg);
         },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 }
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
       );
     } else {
       fetchIpLocation("Browser doesn't support GPS");
