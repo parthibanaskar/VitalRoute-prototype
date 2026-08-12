@@ -107,7 +107,9 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
     
     // If Nominatim fails or returns empty (e.g. mobile IP rate-limit), fallback to Overpass API for REAL data!
     try {
-      const query = `[out:json][timeout:10];node["amenity"="hospital"](${minLat},${minLon},${maxLat},${maxLon});out 15;`;
+      // Use 'nwr' (node, way, relation) because most hospitals are mapped as polygons (ways)
+      // 'out center' guarantees we get a lat/lon center point even for polygons.
+      const query = `[out:json][timeout:10];nwr["amenity"="hospital"](${minLat},${minLon},${maxLat},${maxLon});out center 15;`;
       const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
       
       const res = await fetch(overpassUrl);
@@ -116,8 +118,11 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
         if (data.elements && data.elements.length > 0) {
           let parsed: HospitalData[] = [];
           for (const el of data.elements) {
-            if (el.type !== "node" || !el.lat || !el.lon) continue;
-            const dist = getDistance(lat, lon, el.lat, el.lon);
+            const elLat = el.lat || (el.center && el.center.lat);
+            const elLon = el.lon || (el.center && el.center.lon);
+            if (!elLat || !elLon) continue;
+            
+            const dist = getDistance(lat, lon, elLat, elLon);
             
             let name = "Local Hospital";
             if (el.tags && el.tags.name) name = el.tags.name;
@@ -129,8 +134,8 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
             parsed.push({
               id: el.id,
               name: name,
-              lat: el.lat,
-              lon: el.lon,
+              lat: elLat,
+              lon: elLon,
               distanceKm: dist,
               etaMin: Math.max(1, Math.round((dist / 40) * 60)),
               bedsTotal: total,
