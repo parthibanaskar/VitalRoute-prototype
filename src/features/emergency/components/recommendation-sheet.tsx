@@ -64,7 +64,7 @@ export function RecommendationSheet({
   
   // Safety fallback in case the array is empty to prevent crashes
   const bestData = hospitals[0] || {
-    id: 1, name: "Emergency Center", lat: 0, lon: 0, distanceKm: 0, etaMin: 0, bedsTotal: 10, bedsFree: 5, capacityStr: "Ready", phone: "911"
+    id: 1, name: "Emergency Center", lat: 0, lon: 0, distanceKm: 0, etaMin: 0, bedsTotal: 10, bedsFree: 5, capacityStr: "Ready", phone: "+1-555-019-9111"
   };
   const altData = hospitals.length > 1 ? hospitals.slice(1, 4) : [];
   
