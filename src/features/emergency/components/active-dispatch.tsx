@@ -39,6 +39,19 @@ export function ActiveDispatch({
   const [called911, setCalled911] = useState(false);
   const hospital = RECOMMENDED[injury];
 
+  // ALL hooks must be called before any conditional returns (Rules of Hooks)
+  useEffect(() => {
+    if (!location) return; // safe guard inside the effect
+    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    const pingId = setTimeout(() => setShowPing(true), 2500);
+    const hidePingId = setTimeout(() => setShowPing(false), 7500);
+    return () => {
+      clearInterval(id);
+      clearTimeout(pingId);
+      clearTimeout(hidePingId);
+    };
+  }, [location]);
+
   if (!location) {
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md">
@@ -46,17 +59,6 @@ export function ActiveDispatch({
       </div>
     );
   }
-
-  useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
-    const pingId = setTimeout(() => setShowPing(true), 2500);
-    const hidePingId = setTimeout(() => setShowPing(false), 7500); // Hide after 5 seconds of showing
-    return () => {
-      clearInterval(id);
-      clearTimeout(pingId);
-      clearTimeout(hidePingId);
-    };
-  }, []);
 
   return (
     <div className="animate-rise-in relative flex min-h-full flex-col gap-4 px-4 pt-4 pb-8">
