@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, BedDouble, Check, Clock, MapPin, Phone, Siren, Loader2, Navigation, Activity, X } from "lucide-react";
 import type { InjuryId } from "@/lib/vitalroute-data";
 import { INJURIES } from "@/lib/vitalroute-data";
