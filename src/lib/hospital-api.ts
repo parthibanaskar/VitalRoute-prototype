@@ -95,6 +95,7 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
           }
           
           if (parsed.length > 0) {
+            // Deduplicate by name (Photon sometimes returns multiple nodes for same building)
             parsed = parsed.filter((v, idx, a) => a.findIndex(t => (t.name === v.name)) === idx);
             parsed.sort((a, b) => a.distanceKm - b.distanceKm);
             return parsed; // Found real local hospitals instantly!
@@ -105,10 +106,57 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
       console.error(`Nominatim failed for radius ${radiusKm}km`, err);
     }
     
-    // If Nominatim fails or returns empty (e.g. mobile IP rate-limit), fallback to Overpass API for REAL data!
+    // Fallback 1: Photon Komoot API (Highly resilient to rate limits, very fast)
     try {
-      // Use 'nwr' (node, way, relation) because most hospitals are mapped as polygons (ways)
-      // 'out center' guarantees we get a lat/lon center point even for polygons.
+      const photonUrl = `https://photon.komoot.io/api/?q=hospital&lat=${lat}&lon=${lon}&limit=15`;
+      const res = await fetch(photonUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.features && data.features.length > 0) {
+          let parsed: HospitalData[] = [];
+          for (const feature of data.features) {
+            const elLon = feature.geometry?.coordinates?.[0];
+            const elLat = feature.geometry?.coordinates?.[1];
+            if (!elLat || !elLon) continue;
+            
+            // Photon can return things far away, so manually filter by radius
+            const dist = getDistance(lat, lon, elLat, elLon);
+            if (dist > radiusKm) continue;
+            
+            let name = feature.properties?.name || "Local Hospital";
+            
+            const rng = pseudoRandom((feature.properties?.osm_id || Math.random()).toString());
+            const total = (rng() % 20) + 5; 
+            const free = rng() % (total + 1);
+            
+            parsed.push({
+              id: feature.properties?.osm_id || Math.random(),
+              name: name,
+              lat: elLat,
+              lon: elLon,
+              distanceKm: dist,
+              etaMin: Math.max(1, Math.round((dist / 40) * 60)),
+              bedsTotal: total,
+              bedsFree: free,
+              capacityStr: free > 2 ? "Trauma Surgeon & Bed Ready" : (free > 0 ? "Limited Bed Capacity" : "Full Capacity - Divert Risk"),
+              phone: "+1-555-019-9111"
+            });
+          }
+          
+          if (parsed.length > 0) {
+            // Deduplicate
+            parsed = parsed.filter((v, idx, a) => a.findIndex(t => (t.name === v.name)) === idx);
+            parsed.sort((a, b) => a.distanceKm - b.distanceKm);
+            return parsed;
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Photon failed for radius ${radiusKm}km`, err);
+    }
+
+    // Fallback 2: Overpass API (Deep OSM search)
+    try {
       const query = `[out:json][timeout:10];nwr["amenity"="hospital"](${minLat},${minLon},${maxLat},${maxLon});out center 15;`;
       const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
       
@@ -146,6 +194,8 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
           }
           
           if (parsed.length > 0) {
+            // Deduplicate by name (Overpass returns nodes, ways, and relations for the same hospital)
+            parsed = parsed.filter((v, idx, a) => a.findIndex(t => (t.name === v.name)) === idx);
             parsed.sort((a, b) => a.distanceKm - b.distanceKm);
             return parsed;
           }
