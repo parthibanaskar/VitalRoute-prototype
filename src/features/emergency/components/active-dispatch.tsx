@@ -39,6 +39,14 @@ export function ActiveDispatch({
   const [called911, setCalled911] = useState(false);
   const hospital = RECOMMENDED[injury];
 
+  if (!location) {
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md">
+        <div className="animate-pulse text-muted-foreground">Acquiring location for dispatch...</div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
     const pingId = setTimeout(() => setShowPing(true), 2500);

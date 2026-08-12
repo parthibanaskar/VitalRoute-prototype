@@ -40,6 +40,7 @@ function VitalRoute() {
   
   // Background pre-fetching state
   const [hospitals, setHospitals] = useState<HospitalData[] | null>(null);
+  const [minScanTimeDone, setMinScanTimeDone] = useState(false);
   const lastFetchedLoc = useRef<[number, number] | null>(null);
   
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,8 +83,15 @@ function VitalRoute() {
     }
 
     setPhase("scanning");
-    timer.current = setTimeout(() => setPhase("recommendation"), 1500);
+    setMinScanTimeDone(false);
+    timer.current = setTimeout(() => setMinScanTimeDone(true), 1500);
   };
+
+  useEffect(() => {
+    if (phase === "scanning" && minScanTimeDone && hospitals !== null) {
+      setPhase("recommendation");
+    }
+  }, [phase, minScanTimeDone, hospitals]);
 
   const reset = () => {
     if (timer.current) clearTimeout(timer.current);
