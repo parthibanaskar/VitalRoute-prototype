@@ -7,7 +7,6 @@ import type { HospitalData } from "@/lib/hospital-api";
 
 function BedMeter({ free, total }: { free: number; total: number }) {
   const [currentFree, setCurrentFree] = useState(free);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -19,15 +18,10 @@ function BedMeter({ free, total }: { free: number; total: number }) {
     return () => clearInterval(interval);
   }, [total]);
 
-  // Safely trigger animation key when the value actually changes
-  useEffect(() => {
-    setLastUpdate(Date.now());
-  }, [currentFree]);
-
   const tone = currentFree === 0 ? "text-alert" : currentFree <= 2 ? "text-warn" : "text-safe";
   return (
     <div className="flex items-center gap-2">
-      <span key={lastUpdate} className={`text-sm font-semibold animate-pulse-once ${tone}`}>
+      <span key={currentFree} className={`text-sm font-semibold animate-pulse-once ${tone}`}>
         {currentFree}/{total} beds free
       </span>
       <span className="flex gap-1" aria-hidden>
