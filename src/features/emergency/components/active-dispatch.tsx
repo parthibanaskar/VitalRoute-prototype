@@ -36,6 +36,7 @@ export function ActiveDispatch({
   const [hasHypertension, setHasHypertension] = useState(false);
   const [prescriptionAdded, setPrescriptionAdded] = useState(false);
   const [medicalIdSaved, setMedicalIdSaved] = useState(false);
+  const [called911, setCalled911] = useState(false);
   const hospital = RECOMMENDED[injury];
 
   useEffect(() => {
@@ -214,13 +215,13 @@ export function ActiveDispatch({
       <FirstAidCard injury={injury} details={details} />
 
       {/* Fallbacks */}
-      <a
-        href="tel:911"
+      <button
+        onClick={() => setCalled911(true)}
         className="flex items-center justify-center gap-3 rounded-3xl border border-alert/50 bg-alert/12 py-5 text-base font-semibold text-foreground transition-colors duration-300 ease-in-out active:bg-alert/20"
       >
-        <PhoneCall className="h-5 w-5 text-alert" />
-        Call Emergency Directly
-      </a>
+        {called911 ? <CheckCircle2 className="h-5 w-5 text-alert" /> : <PhoneCall className="h-5 w-5 text-alert" />}
+        {called911 ? "Emergency Services Called" : "Call Emergency Directly"}
+      </button>
 
       <LongPressButton onComplete={onCancel} className="mx-auto w-full max-w-xs">
         Hold to Cancel SOS

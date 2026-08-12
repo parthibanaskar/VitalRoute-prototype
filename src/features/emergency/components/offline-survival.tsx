@@ -1,4 +1,5 @@
-import { PhoneCall, AlertTriangle, ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { PhoneCall, AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import type { InjuryId } from "@/lib/vitalroute-data";
 import { INJURIES } from "@/lib/vitalroute-data";
 import { FirstAidCard } from "./first-aid-card";
@@ -13,6 +14,7 @@ export function OfflineSurvival({
   onBack: () => void;
 }) {
   const label = INJURIES.find((i) => i.id === injury)?.label ?? "Emergency";
+  const [called911, setCalled911] = useState(false);
 
   return (
     <div className="animate-rise-in glass-strong relative max-h-[82vh] flex-col overflow-y-auto rounded-t-3xl px-4 pt-5 pb-8">
@@ -48,13 +50,13 @@ export function OfflineSurvival({
         <FirstAidCard injury={injury} details={details} />
       </div>
 
-      <a
-        href="tel:911"
+      <button
+        onClick={() => setCalled911(true)}
         className="mt-6 flex w-full items-center justify-center gap-3 rounded-3xl bg-alert py-6 text-xl font-bold tracking-tight text-alert-foreground shadow-[var(--shadow-glow-alert)] transition-all duration-300 ease-in-out active:scale-[0.98]"
       >
-        <PhoneCall className="h-6 w-6" />
-        Dial Emergency (911)
-      </a>
+        {called911 ? <CheckCircle2 className="h-6 w-6" /> : <PhoneCall className="h-6 w-6" />}
+        {called911 ? "Emergency Services Called" : "Dial Emergency (911)"}
+      </button>
     </div>
   );
 }
