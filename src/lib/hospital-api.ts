@@ -49,7 +49,8 @@ export async function fetchLiveHospitals(lat: number, lon: number): Promise<Hosp
     const viewbox = `${minLon},${maxLat},${maxLon},${minLat}`;
     
     // bounded=1 mathematically restricts results to ONLY the local box, never global.
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=hospital&viewbox=${viewbox}&bounded=1&limit=15&addressdetails=1`;
+    // Added email to comply with Nominatim usage policy and prevent rate limiting on mobile IPs
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=hospital&viewbox=${viewbox}&bounded=1&limit=15&addressdetails=1&email=emergency@vitalroute.app`;
 
     try {
       const res = await fetch(url, {
